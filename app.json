@@ -1,0 +1,12 @@
+{
+  "name": "reactnd-ClassicalMusicQuiz",
+  "displayName": "reactnd-ClassicalMusicQuiz",
+  "expo": {
+    "name": "reactnd-ClassicalMusicQuiz",
+    "slug": "reactnd-ClassicalMusicQuiz",
+    "version": "1.0.0",
+    "assetBundlePatterns": [
+      "**/*"
+    ]
+  }
+}
