@@ -1,22 +1,68 @@
 import React, { useEffect, useState } from "react"
 import { Text, View, StyleSheet, Image, ActivityIndicator, Pressable }  from "react-native"
+import { Audio } from "expo-av"
 import { getComposerArtBySampleID } from "../utils/QuizUtils"
 
 const CORRECT_ANSWER_DELAY_MILLIS = 1000 //one second delay
 
-export default function QuizItem({ mQuestionSampleIDs = null, mAnswerSampleID = null, handleOnCLick }) {
+export default function QuizItem({ mQuestionSampleIDs = null, mAnswerSampleID = null, handleOnCLick, navigation }) {
 
     const [ state, setState] = useState({
         questionSampleIDs: null,
         answerSampleID: null,
+        imageSource: undefined,
     })
 
+    const [sound, setSound] = useState();
+
     useEffect(() => {
+        //Create an Audio Sound instance
+        mAnswerSampleID && initializeSound(mAnswerSampleID.uri)
         setState({
             questionSampleIDs: mQuestionSampleIDs,
             answerSampleID: mAnswerSampleID,
         })
+
     }, [mQuestionSampleIDs, mAnswerSampleID])
+
+    /**
+     * Release the sound from memory when the component is destroyed
+     */
+    useEffect(() => {
+        return sound
+        ? () => {
+            sound.unloadAsync() }
+        : undefined
+    }, [sound])
+
+    /**
+     * Initialize Expo Audio player.
+     * @param mediaSource The URI of the sample to play.
+     */
+    async function initializeSound(mediaSource){
+        Audio.setAudioModeAsync(
+            {
+                /** 
+                 * For this project, We want to keep the music playing so that the user can check their text message.
+                 * However, we do run the risk of the component being destroyed by the system and 
+                 * therefore unexpectedly terminating playback
+                */
+                staysActiveInBackground: true, //this alone is good for android
+                playsInSilentModeIOS: true, //you must set this to ture, if you want the sound to still play when your app goes to the background
+            }
+        )
+        const initialStatus = {
+            shouldPlay: true, //the sound begins playing immediately when its ready
+            isLooping: true,
+        }
+        //prepare the sound
+        const { sound } = await Audio.Sound.createAsync(
+            mediaSource,
+            initialStatus,
+        );
+
+        setSound(sound)
+    }
 
     const handleOnPress = (buttonIndex) => {
         const { questionSampleIDs, answerSampleID } = state
@@ -32,6 +78,7 @@ export default function QuizItem({ mQuestionSampleIDs = null, mAnswerSampleID = 
         setState(currState => ({
           ...currState,
           questionSampleIDs: updatedQuestionSampleIDs, 
+          imageSource: getComposerArtBySampleID(answerSampleID.id) // show the potrait of the composer in the Album art now the user has selcted an aser to help show what the correct answer is
         }))
 
         // Wait some time so the user can see the correct answer, then go to the next question.
@@ -39,7 +86,10 @@ export default function QuizItem({ mQuestionSampleIDs = null, mAnswerSampleID = 
 
     }
 
-    const { questionSampleIDs, answerSampleID } = state
+    const { questionSampleIDs, answerSampleID, 
+        // Load the question mark as the background image until the user answers the question.
+        imageSource = require("../assets/images/question_mark.png")
+    } = state
 
     if(!answerSampleID || !questionSampleIDs){
         return <View style={{flex: 1, justifyContent: "center", alignItems:"center"}}><ActivityIndicator style={{marginTop: 30}} size="large" color="#d9d9d9"/></View>
@@ -51,8 +101,7 @@ export default function QuizItem({ mQuestionSampleIDs = null, mAnswerSampleID = 
             flex: 1, justifyContent:"center", alignItems:"center"}}>
                 <Image 
                 style={{width:"100%", height:"100%", resizeMode:"contain"}}
-                source={// Load the image of the composer for the answer into the ImageView.
-                    getComposerArtBySampleID(answerSampleID.id)}
+                source={imageSource}
                 />
             </View>
             <View style={{flex: 1, flexWrap: "wrap", flexDirection:"row", justifyContent:"space-evenly"}}>
@@ -61,7 +110,7 @@ export default function QuizItem({ mQuestionSampleIDs = null, mAnswerSampleID = 
                     <Pressable 
                     onPress={() => handleOnPress(id)} 
                     key={id} 
-                    disabled={/*Disables the buttons one an answer is selected*/color?true:false}
+                    disabled={/*Disables the buttons once an answer is selected*/color?true:false}
                     >
                         <View style={[styles.button, { backgroundColor: color? color: "#cccccc" }]}>
                             <Text>{composer.toUpperCase()}</Text>
