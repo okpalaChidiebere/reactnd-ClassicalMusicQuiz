@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react"
 import { Text, View, StyleSheet, Image, ActivityIndicator, Pressable }  from "react-native"
 import { Audio } from "expo-av"
 import { getComposerArtBySampleID } from "../utils/QuizUtils"
+import SoundPlaybackControl from "./SoundPlaybackControl"
 
 const TAG = "QuizItem"
 const CORRECT_ANSWER_DELAY_MILLIS = 1000 //one second delay
@@ -15,6 +16,7 @@ export default function QuizItem({ mQuestionSampleIDs = null, mAnswerSampleID = 
     })
 
     const [sound, setSound] = useState();
+    const [status, setStatus] = useState({})
 
     useEffect(() => {
         //Create an Audio Sound instance
@@ -60,12 +62,14 @@ export default function QuizItem({ mQuestionSampleIDs = null, mAnswerSampleID = 
         const onPlaybackStatusUpdate = async (playbackStatus) => {
             /**
             * see full list of status you can listen for here 
-            * https://docs.expo.io/versions/v41.0.0/sdk/av/#playback-status */
-            if(playbackStatus.isPlaying && playbackStatus.isLoaded){
-                console.log(TAG, "onPlayerStatusChanged: PLAYING")
-            } else if(!playbackStatus.isPlaying){
-                console.log(TAG, "onPlayerStatusChanged: PAUSED")
-            }
+            * https://docs.expo.io/versions/v41.0.0/sdk/av/#playback-status
+            * https://docs.expo.io/versions/v41.0.0/sdk/av/#example-usage
+            *  */
+
+            //We want to only update the statusState when the sound is loaded. If you dont check this you will get "Can't perform a React state update on an unmounted component" Error
+            if(playbackStatus.isLoaded)
+                setStatus(() => playbackStatus)
+
         }
 
         //prepare the sound
@@ -116,6 +120,28 @@ export default function QuizItem({ mQuestionSampleIDs = null, mAnswerSampleID = 
                 <Image 
                 style={{width:"100%", height:"100%", resizeMode:"contain"}}
                 source={imageSource}
+                />
+                <SoundPlaybackControl
+                    status={status}
+                    onPrevious={() => sound.setStatusAsync({ positionMillis: 0 })}
+                    onSoundPlay={() => 
+                        status.isPlaying ? sound.pauseAsync() : sound.playAsync()
+                    }
+                    onSeek={async (positionMillis) => {
+                        try {
+                            await sound.setPositionAsync(positionMillis)
+                        } catch (error) {
+                            /*
+                            * we will get a "Seeking interrupted" WARNING on only iOS but it is OK
+                            * because we allowed the user to interrup the audio :)
+                            * 
+                            * //this link might hel understianing trouble shouding seeking more. Sometimes you may not want the user to seek pass the playableDurationMillis time
+                            * //consider using getStatusAsync()
+                            * Read this: https://docs.expo.io/versions/v41.0.0/sdk/av/#what-is-seek-tolerance-and-why-would
+                            * https://fantashit.com/expo-av-repeatedly-seeking-skipping-causes-app-to-freeze/
+                            */
+                        }
+                    }}
                 />
             </View>
             <View style={{flex: 1, flexWrap: "wrap", flexDirection:"row", justifyContent:"space-evenly"}}>
