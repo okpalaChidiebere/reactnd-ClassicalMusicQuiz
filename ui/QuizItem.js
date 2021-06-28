@@ -3,6 +3,7 @@ import { Text, View, StyleSheet, Image, ActivityIndicator, Pressable }  from "re
 import { Audio } from "expo-av"
 import { getComposerArtBySampleID } from "../utils/QuizUtils"
 
+const TAG = "QuizItem"
 const CORRECT_ANSWER_DELAY_MILLIS = 1000 //one second delay
 
 export default function QuizItem({ mQuestionSampleIDs = null, mAnswerSampleID = null, handleOnCLick, navigation }) {
@@ -55,10 +56,23 @@ export default function QuizItem({ mQuestionSampleIDs = null, mAnswerSampleID = 
             shouldPlay: true, //the sound begins playing immediately when its ready
             isLooping: true,
         }
+
+        const onPlaybackStatusUpdate = async (playbackStatus) => {
+            /**
+            * see full list of status you can listen for here 
+            * https://docs.expo.io/versions/v41.0.0/sdk/av/#playback-status */
+            if(playbackStatus.isPlaying && playbackStatus.isLoaded){
+                console.log(TAG, "onPlayerStatusChanged: PLAYING")
+            } else if(!playbackStatus.isPlaying){
+                console.log(TAG, "onPlayerStatusChanged: PAUSED")
+            }
+        }
+
         //prepare the sound
         const { sound } = await Audio.Sound.createAsync(
             mediaSource,
             initialStatus,
+            onPlaybackStatusUpdate,
         );
 
         setSound(sound)
